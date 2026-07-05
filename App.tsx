@@ -29,6 +29,7 @@ export default function App() {
   const [target, setTarget] = useState<Environment>("staging");
   const [externalId, setExternalId] = useState(DEFAULT_IDENTITY.external_id);
   const [personnummer, setPersonnummer] = useState(DEFAULT_IDENTITY.personnummer);
+  const [hasPersonnummer, setHasPersonnummer] = useState(true);
   const [fullName, setFullName] = useState(DEFAULT_IDENTITY.full_name);
   const [email, setEmail] = useState(DEFAULT_IDENTITY.email);
   const [phone, setPhone] = useState(DEFAULT_IDENTITY.phone);
@@ -47,7 +48,11 @@ export default function App() {
         env,
         identity: {
           external_id: externalId,
-          personnummer,
+          // Omitted entirely (not an empty string) when simulating a
+          // partner with no personnummer — the target integration must
+          // have requires_personnummer=false or session-create rejects
+          // this with a 400 same as if the field were just missing.
+          ...(hasPersonnummer ? { personnummer } : {}),
           full_name: fullName,
           email,
           phone: phone || undefined,
@@ -103,7 +108,35 @@ export default function App() {
 
         <Section title="Identity (server-asserted)">
           <Field label="external_id" value={externalId} onChangeText={setExternalId} />
-          <Field label="personnummer" value={personnummer} onChangeText={setPersonnummer} keyboardType="number-pad" />
+
+          <View style={styles.row}>
+            <Toggle
+              label="Has personnummer"
+              active={hasPersonnummer}
+              onPress={() => setHasPersonnummer(true)}
+            />
+            <Toggle
+              label="No personnummer"
+              active={!hasPersonnummer}
+              onPress={() => setHasPersonnummer(false)}
+              tone="warn"
+            />
+          </View>
+          {hasPersonnummer ? (
+            <Field
+              label="personnummer"
+              value={personnummer}
+              onChangeText={setPersonnummer}
+              keyboardType="number-pad"
+            />
+          ) : (
+            <Text style={styles.helper}>
+              personnummer will be omitted from the request entirely. Target
+              integration must have requires_personnummer=false configured
+              server-side, or session-create rejects this with a 400.
+            </Text>
+          )}
+
           <Field label="full_name" value={fullName} onChangeText={setFullName} />
           <Field label="email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
           <Field label="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
