@@ -20,7 +20,10 @@ export interface AccessTokenResponse {
 
 export interface SessionCreateRequest {
   external_id: string;
-  personnummer: string;
+  /** Required unless the target integration has requires_personnummer=false
+   *  configured server-side. Omit entirely (not an empty string) to test
+   *  that path — an empty string still fails the server's shape check. */
+  personnummer?: string;
   full_name: string;
   email: string;
   phone?: string;
