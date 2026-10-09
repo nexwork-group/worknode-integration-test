@@ -4,8 +4,8 @@
  * the callback.
  *
  * The HMAC canonical-string format is: alphabetical keys, `signature`
- * excluded, joined as `k=v&k=v`, values NOT URL-encoded. This matches
- * the spec in the Worknode partner integration guide PDF.
+ * excluded, joined as `k=v&k=v`, values NOT URL-encoded. Spec:
+ * docs/en/integrate/return-url.mdx in worknode-next.
  */
 
 import CryptoJS from "crypto-js";
@@ -81,8 +81,9 @@ export async function createSession(
 
 /** Canonical string the server uses to sign the return URL. Keys
  *  sorted alphabetically, `signature` excluded, joined as `k=v&k=v`,
- *  values NOT URL-encoded. Must match the spec in the Worknode partner
- *  integration guide PDF byte-for-byte. */
+ *  values NOT URL-encoded. Must match docs/en/integrate/return-url.mdx in
+ *  worknode-next byte-for-byte — which also keeps every occurrence of a
+ *  repeated key, sorted by value; this Record-based version does not. */
 export function canonicalize(params: Record<string, string>): string {
   return Object.keys(params)
     .filter((k) => k !== "signature")
@@ -110,7 +111,7 @@ export interface CallbackVerification {
  *    param.
  *  - If `expectedState` is provided, also checks the echoed state
  *    matches exactly. This is the CSRF / session-reconciliation
- *    check the partner guide §7 recommends — HMAC alone is not
+ *    check in docs/en/integrate/return-url.mdx ("Checking state") — HMAC alone is not
  *    enough on a multi-device install. */
 export function verifyCallback(
   callbackUrl: string,

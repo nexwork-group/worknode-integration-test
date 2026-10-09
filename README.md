@@ -19,15 +19,23 @@ callback → confirm `state` round-trips.
    npm install
    ```
 
-2. **Get your credentials from Worknode.** Email `tech@worknode.se`
-   to provision your integration. You'll receive:
-   - `WORKNODE_INTEGRATION_SLUG` — your integration identifier
-   - `WORKNODE_INTEGRATION_SECRET` — your static bearer secret
-   - Confirmation that the return URL on the Worknode side is
-     pre-configured to `worknode-test://callback` to match this harness
+2. **Create the `harness` integration.** In worknode-next, with
+   `apps/web/.env.local` (or the staging env) sourced, run:
+   ```bash
+   pnpm --filter worknode-next exec tsx scripts/create-harness-integration.ts
+   ```
+   It creates (or rotates) an integration with slug `harness` and return
+   URL `worknode-test://callback`, and writes the slug and secret straight
+   into this repo's `.env.local`. Re-running it rotates the secret.
 
-3. **Fill in `.env.local`** with the credentials from step 2 for both
-   environments. See `.env.local.example` for the variable names.
+   Use the `harness` slug, not a partner's. A partner's return URL is an
+   HTTPS endpoint they own, so the in-app browser never sees
+   `worknode-test://callback`, never closes, and every run ends as
+   `user_cancelled` without the signature ever being checked. It also
+   writes test users and invoices under that partner's name.
+
+3. **Check `.env.local`.** See `.env.local.example` for the variable
+   names. Each environment has its own secret.
 
 4. **Run** in a simulator or on a real device:
    ```bash
@@ -63,18 +71,26 @@ Tapping **Run handoff flow**:
    matches the value sent in step 2.
 6. Displays the outcome as a structured JSON blob.
 
+"Signed callback verified" means only that the signature (and `state`)
+checked out. The harness does not branch on `status`, so `cancelled`,
+`interrupted` and `pending_review` are reported the same way — read
+`status` in the JSON.
+
 ## Failure modes you can deliberately exercise
 
-- **User cancels the in-app browser** → outcome `user_cancelled`.
+- **User cancels the in-app browser** → outcome `user_cancelled`. The
+  same outcome appears for every run if the integration's return URL is
+  not `worknode-test://callback` (see Setup step 2).
   Real partners must offer a Retry which calls session-create again
   for a fresh token; the previous one is single-use and burned.
 - **Tamper with the signature** — modify
   `lib/worknode-client.ts:verifyCallback` to pass a wrong secret
   → outcome `verification_failed`, reason `hmac_mismatch`.
-- **Stale state** — temporarily hard-code a constant string in
-  `lib/flow.ts:freshState()` so two runs share a state value; the
-  second run's cookie-overwrite means the echoed state won't match
-  → outcome `verification_failed`, reason `state_mismatch`.
+- **State mismatch** — temporarily pass a different value as the
+  third argument of `verifyCallback(...)` in `lib/flow.ts` (the call
+  after the browser returns) → outcome `verification_failed`, reason
+  `state_mismatch`. Hard-coding `freshState()` does not do this: the
+  value sent, stored and expected stay identical.
 - **Wrong API base** — temporarily edit `.env.local` to point at a
   4xx host → outcome `api_error` at stage `token` or `session`.
 
@@ -94,7 +110,11 @@ Tapping **Run handoff flow**:
 
 ## HMAC canonical-string format
 
-The signature scheme is documented in the Worknode partner integration
-guide (PDF) shipped to you by `tech@worknode.se`. If you ever observe a
-signature mismatch in production, double-check `canonicalize()` in
-`lib/worknode-client.ts` against that spec.
+The signature scheme is specified in the Worknode partner docs, "Verifying
+the return URL" — `docs/en/integrate/return-url.mdx` in worknode-next.
+If you observe a signature mismatch, check `canonicalize()` in
+`lib/worknode-client.ts` against that page. Known gap: `canonicalize()`
+keeps only the last value of a repeated key and sorts by key only, whereas
+the spec keeps every occurrence and sorts by key then value. That only
+matters for a return URL with repeated query keys, which
+`worknode-test://callback` does not have.

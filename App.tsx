@@ -14,9 +14,10 @@ import { StatusBar } from "expo-status-bar";
 import { Environment, envIsConfigured, loadEnv } from "./lib/config";
 import { runFlow, FlowOutcome } from "./lib/flow";
 
-/** Default test identity. Personnummer is the conventional test value
- *  from the partner guide §10 — coordinate with tech@worknode.se
- *  before running against real downstream pipelines. */
+/** Default test identity. The personnummer is not Luhn-valid (the server
+ *  only checks it is 10–12 digits) and the email is fixed, so every run
+ *  after the first reuses the same Worknode user. Coordinate with
+ *  tech@worknode.se before running against real downstream pipelines. */
 const DEFAULT_IDENTITY = {
   external_id: "expo-test-user",
   personnummer: "199001011234",
